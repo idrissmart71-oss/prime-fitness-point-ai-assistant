@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, FormEvent } from 'react';
-import { GoogleGenAI, Chat } from '@google/genai';
+import { GoogleGenAI, Chat } from 'https://aistudiocdn.com/@google/genai@^1.28.0';
 import { LeafIcon as BotIcon, UserIcon, SendIcon, DownloadIcon } from './components/icons';
 import type { Message } from './types';
 
