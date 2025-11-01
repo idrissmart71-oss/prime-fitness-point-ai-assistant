@@ -83,11 +83,14 @@ const App: React.FC = () => {
     setIsLoading(true);
   
     try {
-      const res = await fetch("https://prime-fitness-point-ai-assistant.onrender.com/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: currentInput }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/chat`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: currentInput }),
+        }
+      );
   
       const data = await res.json();
       if (data.error) throw new Error(data.error);
