@@ -41,7 +41,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const initChat = async () => {
       try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
         const ai = new GoogleGenerativeAI({ import.meta.env.VITE_GEMINI_API_KEY });
 
         const chatSession = ai.chats.create({
