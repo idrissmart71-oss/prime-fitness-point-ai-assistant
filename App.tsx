@@ -86,7 +86,7 @@ const handleSendMessage = async (e: FormEvent) => {
   e.preventDefault();
   if (!input.trim()) return;
 
-  const userMessage: Message = { role: "user", content: input };
+  const userMessage = { role: "user", content: input };
   setMessages((prev) => [...prev, userMessage]);
   setInput("");
   setIsLoading(true);
@@ -95,7 +95,7 @@ const handleSendMessage = async (e: FormEvent) => {
     const res = await fetch("/api/gemini", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input, history: messages }),
+      body: JSON.stringify({ message: input }),
     });
 
     const data = await res.json();
@@ -103,21 +103,15 @@ const handleSendMessage = async (e: FormEvent) => {
     if (data.text) {
       setMessages((prev) => [...prev, { role: "model", content: data.text }]);
     } else {
-      throw new Error("Invalid response from Gemini API");
+      setMessages((prev) => [...prev, { role: "model", content: "⚠️ No valid response from AI." }]);
     }
   } catch (err) {
-    console.error("Client Error:", err);
-    setMessages((prev) => [
-      ...prev,
-      { role: "model", content: "⚠️ I encountered an issue generating a response. Please try again later." },
-    ]);
+    console.error("Error:", err);
+    setMessages((prev) => [...prev, { role: "model", content: "⚠️ Server error. Try again later." }]);
   } finally {
     setIsLoading(false);
   }
 };
-
-
-
 
   // Download plan
   const handleDownloadPlan = (content: string) => {
