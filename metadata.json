@@ -1,0 +1,5 @@
+{
+  "name": "Prime Fitness Point - AI Assistant",
+  "description": "A conversational AI chatbot for Prime Fitness Point that calculates BMI, creates personalized Indian diet charts, and answers nutritional questions.",
+  "requestFramePermissions": []
+}
