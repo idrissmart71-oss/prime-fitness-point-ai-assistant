@@ -42,7 +42,7 @@ const App: React.FC = () => {
     const initChat = async () => {
       try {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
-        const ai = new GoogleGenerativeAI({ apiKey });
+        const ai = new GoogleGenerativeAI({ import.meta.env.VITE_GEMINI_API_KEY });
 
         const chatSession = ai.chats.create({
           model: 'gemini-2.5-pro',
