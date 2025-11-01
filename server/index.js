@@ -10,14 +10,20 @@ const app = express();
 // ✅ Allow frontend on Vercel + local dev
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://prime-fitness-point-ai-assistant.vercel.app/" // 🔁 replace this with your actual Vercel app URL
+  "https://prime-fitness-point-ai-assistant.vercel.app" // 🔁 replace this with your actual Vercel app URL
 ];
 app.use(
-  cors({
-    origin: allowedOrigins,
-    methods: ["GET", "POST"],
-  })
-);
+    cors({
+      origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
+      methods: ["GET", "POST"],
+    })
+  );
 
 app.use(express.json());
 
