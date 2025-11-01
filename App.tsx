@@ -35,7 +35,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Scroll to bottom when messages update
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -46,18 +46,20 @@ const App: React.FC = () => {
       try {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         if (!apiKey) throw new Error("Missing Gemini API Key");
-  
+
         const ai = new GoogleGenerativeAI(apiKey);
         const modelInstance = ai.getGenerativeModel({
-          model: "gemini-1.5-flash", // ✅ supported model
+          model: "gemini-1.5-flash", // ✅ stable, public model
+          systemInstruction: `You are PRIME Bot — a fitness and diet assistant.
+You help users create personalized workout and meal plans in a friendly, concise, and motivational way.`,
         });
-  
+
         setModel(modelInstance);
         setMessages([
           {
             role: "model",
             content:
-              "🏋️‍♂️ Welcome to Prime Fitness Point! I’m PRIME Bot, your personal AI fitness assistant. What’s your name?",
+              "🏋️‍♂️ Welcome to Prime Fitness Point! I’m PRIME Bot, your AI fitness trainer. What’s your name?",
           },
         ]);
       } catch (err) {
@@ -66,59 +68,51 @@ const App: React.FC = () => {
           {
             role: "model",
             content:
-              "Sorry, I'm having trouble connecting. Please check your internet connection or API key and refresh the page.",
+              "⚠️ I'm having trouble connecting to the Gemini API. Please verify your API key and refresh the page.",
           },
         ]);
       } finally {
         setIsLoading(false);
       }
     };
-  
+
     initChat();
   }, []);
-  
 
-  // Handle user message submission
+  // Handle message submission
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !model) return;
-  
+
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     const currentInput = input;
     setInput("");
     setIsLoading(true);
-  
+
     try {
-      console.log("Sending prompt:", currentInput);
-    
+      console.log("Prompt:", currentInput);
       const result = await model.generateContent(currentInput);
-    
-      // Extract text safely
-      const text =
+      const responseText =
         result?.response?.text?.() ||
         result?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "⚠️ No response received from Gemini API.";
-    
-      setMessages((prev) => [...prev, { role: "model", content: text }]);
-    } catch (error: any) {
+        "⚠️ No response received. Please try again.";
+
+      setMessages((prev) => [...prev, { role: "model", content: responseText }]);
+    } catch (error) {
       console.error("Gemini API Error:", error);
       setMessages((prev) => [
         ...prev,
         {
           role: "model",
           content:
-            "⚠️ I encountered an issue generating a response. Please check your API key and try again.",
+            "⚠️ I encountered an issue generating a response. Please check your API key or try again later.",
         },
       ]);
     } finally {
       setIsLoading(false);
     }
   };
-
-  initChat();
-}, []);
-    
 
   // Download plan
   const handleDownloadPlan = (content: string) => {
@@ -221,9 +215,6 @@ const App: React.FC = () => {
           </button>
         </form>
       </footer>
-
-      {/* Hidden element for printing */}
-      <div id="print-mount" className="hidden"></div>
     </div>
   );
 };
