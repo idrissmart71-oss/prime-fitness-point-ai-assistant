@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, FormEvent } from 'react';
-import { GoogleGenAI, Chat } from 'https://aistudiocdn.com/@google/genai@^1.28.0';
 import { LeafIcon as BotIcon, UserIcon, SendIcon, DownloadIcon } from './components/icons';
 import type { Message } from './types';
 
@@ -28,7 +27,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
 };
 
 const App: React.FC = () => {
-  const [chat, setChat] = useState<Chat | null>(null);
+  const [chat, setChat] = useState<any | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -39,10 +38,17 @@ const App: React.FC = () => {
   }, [messages]);
 
   useEffect(() => {
-    const initChat = async () => {
+    const initializeChat = async () => {
+      setIsLoading(true);
       try {
+        const { GoogleGenAI } = await import('https://esm.sh/@google/genai@0.14.0');
+
+        if (!GoogleGenAI) {
+          throw new Error("GenAI library module failed to load.");
+        }
+
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-        
+
         const firstBotMessage = "Welcome to Prime Fitness Point! I'm PRIME Bot, your personal AI fitness assistant. To create a customized plan for you, let's start with your name. What should I call you?";
         const systemInstruction = `You are a friendly and professional AI fitness assistant for 'Prime Fitness Point'. Your name is 'PRIME Bot'. Your goal is to help users achieve their fitness goals.
 
@@ -71,25 +77,36 @@ const App: React.FC = () => {
 
         const chatSession = ai.chats.create({
           model: 'gemini-2.5-pro',
-          history: [{ role: 'model', parts: [{ text: firstBotMessage }] }],
+          history: [
+            { role: 'user', parts: [{ text: 'Start Chat' }] },
+            { role: 'model', parts: [{ text: firstBotMessage }] }
+          ],
           config: { systemInstruction },
         });
         setChat(chatSession);
-
         setMessages([{ role: 'model', content: firstBotMessage }]);
+
       } catch (error) {
         console.error("Failed to initialize chat:", error);
         let errorMessage = "Sorry, I'm having trouble connecting. Please check your network connection and refresh the page.";
-        if (error instanceof Error && error.message.includes('API key')) {
-          errorMessage = "Could not connect to the AI service. The API key may be invalid or missing. Please ensure it is configured correctly in your deployment environment and refresh the page.";
+        if (error instanceof Error) {
+            if (error.message.includes('API key')) {
+              errorMessage = "Could not connect to the AI service. The API key may be invalid or missing. Please ensure it is configured correctly in your deployment environment and refresh the page.";
+            } else if (error.message.includes('failed to fetch')) {
+              errorMessage = "Error: The AI library failed to load. Please check your internet connection and refresh the page.";
+            } else {
+              errorMessage = `Failed to initialize chat: ${error.message}`;
+            }
         }
         setMessages([{ role: 'model', content: errorMessage }]);
       } finally {
         setIsLoading(false);
       }
     };
-    initChat();
+
+    initializeChat();
   }, []);
+
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
