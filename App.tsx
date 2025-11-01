@@ -8,7 +8,7 @@ import {
 } from "./components/icons";
 import type { Message } from "./types";
 
-// Markdown renderer helper
+// Helper to convert simple markdown to HTML
 const markdownToHtml = (text: string) => {
   return text
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
@@ -20,7 +20,7 @@ const markdownToHtml = (text: string) => {
     .replace(/\n/g, "<br />");
 };
 
-// Markdown component
+// Markdown Renderer
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => (
   <div
     className="prose prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200"
@@ -35,7 +35,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Scroll to bottom when messages update
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -49,10 +49,9 @@ const App: React.FC = () => {
 
         const ai = new GoogleGenerativeAI(apiKey);
         const modelInstance = ai.getGenerativeModel({
-          model: "gemini-1.5-flash",        
-          systemInstruction: `You are a friendly and professional AI fitness assistant for 'Prime Fitness Point'.
-Help users create customized diet and workout plans based on their goals, gender, and age.
-Always be polite, concise, and motivating.`,
+          model: "gemini-1.5-flash",
+          systemInstruction: `You are PRIME Bot — a friendly AI fitness assistant for 'Prime Fitness Point'.
+You help users generate personalized 7-day Indian diet and workout plans based on their age, weight, height, and goals.`,
         });
 
         setModel(modelInstance);
@@ -69,7 +68,7 @@ Always be polite, concise, and motivating.`,
           {
             role: "model",
             content:
-              "Sorry, I'm having trouble connecting. Please check your internet connection or API key and refresh the page.",
+              "Sorry, I'm having trouble connecting to the AI service. Please check your API key or network connection.",
           },
         ]);
       } finally {
@@ -79,42 +78,48 @@ Always be polite, concise, and motivating.`,
     initChat();
   }, []);
 
-  // Handle user message submission
-  // Handle user message submission
-// Handle user message submission
-const handleSendMessage = async (e: FormEvent) => {
-  e.preventDefault();
-  if (!input.trim()) return;
+  // ✅ Proper Gemini API request
+  const handleSendMessage = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !model) return;
 
-  const userMessage = { role: "user", content: input };
-  setMessages(prev => [...prev, userMessage]);
-  const history = [...messages]; // pass previous messages optionally
-  setInput("");
-  setIsLoading(true);
+    const userMessage: Message = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
+    setInput("");
+    setIsLoading(true);
 
-  try {
-    const res = await fetch("/api/gemini", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input, history }),
-    });
-    const data = await res.json();
-    if (res.ok && data.text) {
-      setMessages(prev => [...prev, { role: "model", content: data.text }]);
-    } else {
-      console.error("Server returned error:", data);
-      setMessages(prev => [...prev, { role: "model", content: "⚠️ No response from API. Check server logs." }]);
+    try {
+      const history = messages.map((m) => ({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: m.content }],
+      }));
+
+      const result = await model.generateContent({
+        contents: [
+          ...history,
+          { role: "user", parts: [{ text: currentInput }] },
+        ],
+      });
+
+      const text = result.response.text();
+      setMessages((prev) => [...prev, { role: "model", content: text }]);
+    } catch (error) {
+      console.error("Gemini API error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "model",
+          content:
+            "⚠️ I'm having trouble generating a response. Please check your API key or try again later.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err) {
-    console.error("Fetch /api/gemini failed:", err);
-    setMessages(prev => [...prev, { role: "model", content: "⚠️ Server error. Try again later." }]);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
-
-  // Download plan
+  // Download button
   const handleDownloadPlan = (content: string) => {
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -139,7 +144,7 @@ const handleSendMessage = async (e: FormEvent) => {
         </div>
       </header>
 
-      {/* Chat Messages */}
+      {/* Chat Section */}
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.map((msg, index) => (
@@ -193,7 +198,7 @@ const handleSendMessage = async (e: FormEvent) => {
         </div>
       </main>
 
-      {/* Input */}
+      {/* Footer Input */}
       <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4">
         <form
           onSubmit={handleSendMessage}
@@ -209,15 +214,12 @@ const handleSendMessage = async (e: FormEvent) => {
           <button
             type="submit"
             className="p-3 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-colors"
-            disabled={!input.trim()}
+            disabled={!input.trim() || isLoading}
           >
             <SendIcon className="h-5 w-5" />
           </button>
         </form>
       </footer>
-
-      {/* Hidden element for printing */}
-      <div id="print-mount" className="hidden"></div>
     </div>
   );
 };

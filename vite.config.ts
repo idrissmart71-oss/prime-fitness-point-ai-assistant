@@ -1,29 +1,24 @@
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
-import path, { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-// Define __dirname since it's not available in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  
+  // Load environment variables
+  const env = loadEnv(mode, process.cwd(), "");
+
   return {
+    plugins: [react()],
     server: {
       port: 3000,
-      host: '0.0.0.0',
+      host: "0.0.0.0",
     },
-    plugins: [react()],
     define: {
-      // Use Vite's import.meta.env instead of process.env
-      'import.meta.env.VITE_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
-      'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY)
+      // Make the Gemini API key accessible to Vite's import.meta.env
+      "import.meta.env.VITE_GEMINI_API_KEY": JSON.stringify(env.VITE_GEMINI_API_KEY),
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        "@": path.resolve(__dirname, "./src"),
       },
     },
   };
