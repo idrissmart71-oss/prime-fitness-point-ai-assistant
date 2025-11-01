@@ -82,30 +82,33 @@ You help users generate personalized 7-day Indian diet and workout plans based o
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !model) return;
-
+  
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     const currentInput = input;
     setInput("");
     setIsLoading(true);
-
+  
     try {
-      const history = messages.map((m) => ({
-        role: m.role === "user" ? "user" : "model",
-        parts: [{ text: m.content }],
-      }));
-
+      console.log("Sending prompt:", currentInput);
+  
+      // Generate response
       const result = await model.generateContent({
         contents: [
-          ...history,
-          { role: "user", parts: [{ text: currentInput }] },
+          {
+            role: "user",
+            parts: [{ text: currentInput }],
+          },
         ],
       });
-
-      const text = result.response.text();
+  
+      // Safely extract response text
+      const text = result?.response?.text() || "⚠️ No content received from API.";
+      console.log("Gemini response:", text);
+  
       setMessages((prev) => [...prev, { role: "model", content: text }]);
-    } catch (error) {
-      console.error("Gemini API error:", error);
+    } catch (error: any) {
+      console.error("Gemini API Error:", error);
       setMessages((prev) => [
         ...prev,
         {
@@ -118,6 +121,7 @@ You help users generate personalized 7-day Indian diet and workout plans based o
       setIsLoading(false);
     }
   };
+  
 
   // Download button
   const handleDownloadPlan = (content: string) => {
