@@ -114,6 +114,10 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  initChat();
+}, []);
     
 
   // Download plan
