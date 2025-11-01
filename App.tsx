@@ -83,20 +83,32 @@ Always be polite, concise, and motivating.`,
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !model) return;
-
+  
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     const currentInput = input;
     setInput("");
     setIsLoading(true);
-
+  
     try {
+      console.log("Sending prompt:", currentInput);
+  
+      // Generate content using Gemini API
       const result = await model.generateContent(currentInput);
-      const response = await result.response;
-      const text = response.text();
+  
+      // Handle API output safely (some SDKs return nested response)
+      let text = "";
+      if (result?.response) {
+        text = result.response.text();
+      } else if (result?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        text = result.candidates[0].content.parts[0].text;
+      } else {
+        text = "⚠️ Unexpected response format from Gemini API.";
+      }
+  
       setMessages((prev) => [...prev, { role: "model", content: text }]);
-    } catch (error) {
-      console.error("Error sending message:", error);
+    } catch (error: any) {
+      console.error("Gemini API Error:", error);
       setMessages((prev) => [
         ...prev,
         {
