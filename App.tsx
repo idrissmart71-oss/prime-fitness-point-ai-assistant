@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect, useRef, FormEvent } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
@@ -8,7 +9,7 @@ import {
 } from "./components/icons";
 import type { Message } from "./types";
 
-// Helper to convert simple markdown to HTML
+// Markdown renderer helper
 const markdownToHtml = (text: string) => {
   return text
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
@@ -20,7 +21,7 @@ const markdownToHtml = (text: string) => {
     .replace(/\n/g, "<br />");
 };
 
-// Markdown Renderer
+// Markdown component
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => (
   <div
     className="prose prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200"
@@ -32,10 +33,10 @@ const App: React.FC = () => {
   const [model, setModel] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-scroll
+  // Scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -47,11 +48,14 @@ const App: React.FC = () => {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         if (!apiKey) throw new Error("Missing Gemini API Key");
 
-        const ai = new GoogleGenerativeAI(apiKey);
-        const modelInstance = ai.getGenerativeModel({
-          model: "gemini-1.5-flash",
-          systemInstruction: `You are PRIME Bot — a friendly AI fitness assistant for 'Prime Fitness Point'.
-You help users generate personalized 7-day Indian diet and workout plans based on their age, weight, height, and goals.`,
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const modelInstance = genAI.getGenerativeModel({
+          model: "gemini-1.5-flash", // ✅ or gemini-2.0-pro if available
+          systemInstruction: `
+            You are PRIME Bot, a friendly and professional AI fitness assistant for 'Prime Fitness Point'.
+            Help users with customized workout and diet plans. 
+            Always respond politely, concisely, and motivate users positively.
+          `,
         });
 
         setModel(modelInstance);
@@ -68,32 +72,28 @@ You help users generate personalized 7-day Indian diet and workout plans based o
           {
             role: "model",
             content:
-              "Sorry, I'm having trouble connecting to the AI service. Please check your API key or network connection.",
+              "⚠️ I'm having trouble connecting to the Gemini API. Please verify your API key and refresh the page.",
           },
         ]);
-      } finally {
-        setIsLoading(false);
       }
     };
     initChat();
   }, []);
 
-  // ✅ Proper Gemini API request
+  // Handle user message submission
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !model) return;
-  
+
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     const currentInput = input;
     setInput("");
     setIsLoading(true);
-  
+
     try {
-      console.log("Sending prompt:", currentInput);
-  
-      // Generate response
-      const result = await model.generateContent({
+      console.log("Prompt:", currentInput);
+      const stream = await model.generateContentStream({
         contents: [
           {
             role: "user",
@@ -101,14 +101,21 @@ You help users generate personalized 7-day Indian diet and workout plans based o
           },
         ],
       });
-  
-      // Safely extract response text
-      const text = result?.response?.text() || "⚠️ No content received from API.";
-      console.log("Gemini response:", text);
-  
-      setMessages((prev) => [...prev, { role: "model", content: text }]);
-    } catch (error: any) {
-      console.error("Gemini API Error:", error);
+
+      let fullResponse = "";
+      for await (const chunk of stream.stream) {
+        const chunkText = chunk.text();
+        fullResponse += chunkText;
+      }
+
+      console.log("Response:", fullResponse);
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "model", content: fullResponse || "⚠️ No response from API." },
+      ]);
+    } catch (error) {
+      console.error("Gemini Error:", error);
       setMessages((prev) => [
         ...prev,
         {
@@ -121,9 +128,8 @@ You help users generate personalized 7-day Indian diet and workout plans based o
       setIsLoading(false);
     }
   };
-  
 
-  // Download button
+  // Download plan
   const handleDownloadPlan = (content: string) => {
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -148,7 +154,7 @@ You help users generate personalized 7-day Indian diet and workout plans based o
         </div>
       </header>
 
-      {/* Chat Section */}
+      {/* Chat */}
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.map((msg, index) => (
@@ -202,7 +208,7 @@ You help users generate personalized 7-day Indian diet and workout plans based o
         </div>
       </main>
 
-      {/* Footer Input */}
+      {/* Input */}
       <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4">
         <form
           onSubmit={handleSendMessage}
@@ -218,7 +224,7 @@ You help users generate personalized 7-day Indian diet and workout plans based o
           <button
             type="submit"
             className="p-3 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-colors"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim()}
           >
             <SendIcon className="h-5 w-5" />
           </button>
