@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, FormEvent } from 'react';
-import { GoogleGenAI, Chat } from '@google/genai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { LeafIcon as BotIcon, UserIcon, SendIcon, DownloadIcon } from './components/icons';
 import type { Message } from './types';
 
@@ -41,7 +41,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const initChat = async () => {
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
+        const ai = new GoogleGenerativeAI({ apiKey });
+
         const chatSession = ai.chats.create({
           model: 'gemini-2.5-pro',
           config: {
