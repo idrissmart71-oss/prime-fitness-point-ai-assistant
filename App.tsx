@@ -80,39 +80,49 @@ You help users create personalized workout and meal plans in a friendly, concise
   }, []);
 
   // Handle message submission
-  const handleSendMessage = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !model) return;
+  // Handle user message submission
+const handleSendMessage = async (e: FormEvent) => {
+  e.preventDefault();
+  if (!input.trim() || !model) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
-    const currentInput = input;
-    setInput("");
-    setIsLoading(true);
+  const userMessage: Message = { role: "user", content: input };
+  setMessages((prev) => [...prev, userMessage]);
+  const currentInput = input;
+  setInput("");
+  setIsLoading(true);
 
-    try {
-      console.log("Prompt:", currentInput);
-      const result = await model.generateContent(currentInput);
-      const responseText =
-        result?.response?.text?.() ||
-        result?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "⚠️ No response received. Please try again.";
+  try {
+    console.log("Sending prompt:", currentInput);
 
-      setMessages((prev) => [...prev, { role: "model", content: responseText }]);
-    } catch (error) {
-      console.error("Gemini API Error:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "model",
-          content:
-            "⚠️ I encountered an issue generating a response. Please check your API key or try again later.",
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
+    // Generate content using Gemini API
+    const result = await model.generateContent(currentInput);
+
+    // Handle API output safely (some SDKs return nested response)
+    let text = "";
+    if (result?.response) {
+      text = result.response.text();
+    } else if (result?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      text = result.candidates[0].content.parts[0].text;
+    } else {
+      text = "⚠️ Unexpected response format from Gemini API.";
     }
-  };
+
+    setMessages((prev) => [...prev, { role: "model", content: text }]);
+  } catch (error: any) {
+    console.error("Gemini API Error:", error);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "model",
+        content:
+          "⚠️ I encountered an issue generating a response. Please try again.",
+      },
+    ]);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // Download plan
   const handleDownloadPlan = (content: string) => {
