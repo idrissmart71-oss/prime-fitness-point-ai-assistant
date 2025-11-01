@@ -84,42 +84,38 @@ Always be polite, concise, and motivating.`,
 // Handle user message submission
 const handleSendMessage = async (e: FormEvent) => {
   e.preventDefault();
-  if (!input.trim() || !model) return;
+  if (!input.trim()) return;
 
   const userMessage: Message = { role: "user", content: input };
   setMessages((prev) => [...prev, userMessage]);
-  const currentInput = input;
   setInput("");
   setIsLoading(true);
 
   try {
-    // Proper Gemini API structure for chat-style conversation
-    const result = await model.generateContent({
-      contents: [
-        ...messages.map((m) => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.content }],
-        })),
-        { role: "user", parts: [{ text: currentInput }] },
-      ],
+    const res = await fetch("/api/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: input, history: messages }),
     });
 
-    const responseText = result.response.text();
-    setMessages((prev) => [...prev, { role: "model", content: responseText }]);
-  } catch (error) {
-    console.error("Gemini API Error:", error);
+    const data = await res.json();
+
+    if (data.text) {
+      setMessages((prev) => [...prev, { role: "model", content: data.text }]);
+    } else {
+      throw new Error("Invalid response from Gemini API");
+    }
+  } catch (err) {
+    console.error("Client Error:", err);
     setMessages((prev) => [
       ...prev,
-      {
-        role: "model",
-        content:
-          "⚠️ I encountered an issue generating a response. Please try again later.",
-      },
+      { role: "model", content: "⚠️ I encountered an issue generating a response. Please try again later." },
     ]);
   } finally {
     setIsLoading(false);
   }
 };
+
 
 
 
