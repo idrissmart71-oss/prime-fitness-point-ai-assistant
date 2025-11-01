@@ -87,7 +87,8 @@ const handleSendMessage = async (e: FormEvent) => {
   if (!input.trim()) return;
 
   const userMessage = { role: "user", content: input };
-  setMessages((prev) => [...prev, userMessage]);
+  setMessages(prev => [...prev, userMessage]);
+  const history = [...messages]; // pass previous messages optionally
   setInput("");
   setIsLoading(true);
 
@@ -95,23 +96,23 @@ const handleSendMessage = async (e: FormEvent) => {
     const res = await fetch("/api/gemini", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input }),
+      body: JSON.stringify({ message: input, history }),
     });
-
     const data = await res.json();
-
-    if (data.text) {
-      setMessages((prev) => [...prev, { role: "model", content: data.text }]);
+    if (res.ok && data.text) {
+      setMessages(prev => [...prev, { role: "model", content: data.text }]);
     } else {
-      setMessages((prev) => [...prev, { role: "model", content: "⚠️ No valid response from AI." }]);
+      console.error("Server returned error:", data);
+      setMessages(prev => [...prev, { role: "model", content: "⚠️ No response from API. Check server logs." }]);
     }
   } catch (err) {
-    console.error("Error:", err);
-    setMessages((prev) => [...prev, { role: "model", content: "⚠️ Server error. Try again later." }]);
+    console.error("Fetch /api/gemini failed:", err);
+    setMessages(prev => [...prev, { role: "model", content: "⚠️ Server error. Try again later." }]);
   } finally {
     setIsLoading(false);
   }
 };
+
 
   // Download plan
   const handleDownloadPlan = (content: string) => {
