@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 8080;
 // 👇 Your exact deployed Vercel URL goes here:
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://prime-fitness-point-ai-assistant.vercel.app"
+  "https://prime-fitness-point-ai-assistant.vercel.app",
   "https://prime-fitness-point-ai-assistant-m3dvj8qdo.vercel.app" // ✅ make sure it's EXACT
 ];
 
