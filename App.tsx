@@ -49,7 +49,7 @@ const App: React.FC = () => {
 
         const ai = new GoogleGenerativeAI(apiKey);
         const modelInstance = ai.getGenerativeModel({
-          model: "gemini-2.0-pro",
+          model: "gemini-1.5-flash",
           systemInstruction: `You are a friendly and professional AI fitness assistant for 'Prime Fitness Point'.
 Help users create customized diet and workout plans based on their goals, gender, and age.
 Always be polite, concise, and motivating.`,
@@ -92,20 +92,15 @@ Always be polite, concise, and motivating.`,
   
     try {
       console.log("Sending prompt:", currentInput);
-  
-      // Generate content using Gemini API
+    
       const result = await model.generateContent(currentInput);
-  
-      // Handle API output safely (some SDKs return nested response)
-      let text = "";
-      if (result?.response) {
-        text = result.response.text();
-      } else if (result?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        text = result.candidates[0].content.parts[0].text;
-      } else {
-        text = "⚠️ Unexpected response format from Gemini API.";
-      }
-  
+    
+      // Extract text safely
+      const text =
+        result?.response?.text?.() ||
+        result?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "⚠️ No response received from Gemini API.";
+    
       setMessages((prev) => [...prev, { role: "model", content: text }]);
     } catch (error: any) {
       console.error("Gemini API Error:", error);
@@ -114,13 +109,13 @@ Always be polite, concise, and motivating.`,
         {
           role: "model",
           content:
-            "⚠️ I encountered an issue generating a response. Please try again.",
+            "⚠️ I encountered an issue generating a response. Please check your API key and try again.",
         },
       ]);
     } finally {
       setIsLoading(false);
     }
-  };
+    
 
   // Download plan
   const handleDownloadPlan = (content: string) => {
