@@ -49,7 +49,7 @@ const App: React.FC = () => {
 
         const ai = new GoogleGenerativeAI(apiKey);
         const modelInstance = ai.getGenerativeModel({
-          model: "gemini-2.0-pro",
+          model: "gemini-1.5-flash",        
           systemInstruction: `You are a friendly and professional AI fitness assistant for 'Prime Fitness Point'.
 Help users create customized diet and workout plans based on their goals, gender, and age.
 Always be polite, concise, and motivating.`,
@@ -80,35 +80,41 @@ Always be polite, concise, and motivating.`,
   }, []);
 
   // Handle user message submission
-  const handleSendMessage = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !model) return;
+  // Handle user message submission
+const handleSendMessage = async (e: FormEvent) => {
+  e.preventDefault();
+  if (!input.trim() || !model) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
-    const currentInput = input;
-    setInput("");
-    setIsLoading(true);
+  const userMessage: Message = { role: "user", content: input };
+  setMessages((prev) => [...prev, userMessage]);
+  const currentInput = input;
+  setInput("");
+  setIsLoading(true);
 
-    try {
-      const result = await model.generateContent(currentInput);
-      const response = await result.response;
-      const text = response.text();
-      setMessages((prev) => [...prev, { role: "model", content: text }]);
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "model",
-          content:
-            "⚠️ I encountered an issue generating a response. Please try again.",
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  try {
+    // Gemini API expects text prompt in array form for context
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: currentInput }] }],
+    });
+
+    const text = result.response.text();
+
+    setMessages((prev) => [...prev, { role: "model", content: text }]);
+  } catch (error) {
+    console.error("Error sending message:", error);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "model",
+        content:
+          "⚠️ I encountered an issue generating a response. Please try again.",
+      },
+    ]);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // Download plan
   const handleDownloadPlan = (content: string) => {
