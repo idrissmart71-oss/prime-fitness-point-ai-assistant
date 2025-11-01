@@ -46,15 +46,12 @@ const App: React.FC = () => {
       try {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         if (!apiKey) throw new Error("Missing Gemini API Key");
-
+  
         const ai = new GoogleGenerativeAI(apiKey);
         const modelInstance = ai.getGenerativeModel({
-          model: "gemini-1.5-flash",
-          systemInstruction: `You are a friendly and professional AI fitness assistant for 'Prime Fitness Point'.
-Help users create customized diet and workout plans based on their goals, gender, and age.
-Always be polite, concise, and motivating.`,
+          model: "gemini-1.5-flash", // ✅ supported model
         });
-
+  
         setModel(modelInstance);
         setMessages([
           {
@@ -76,8 +73,10 @@ Always be polite, concise, and motivating.`,
         setIsLoading(false);
       }
     };
+  
     initChat();
   }, []);
+  
 
   // Handle user message submission
   const handleSendMessage = async (e: FormEvent) => {
