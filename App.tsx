@@ -35,7 +35,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-scroll to bottom
+  // Scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -49,9 +49,10 @@ const App: React.FC = () => {
 
         const ai = new GoogleGenerativeAI(apiKey);
         const modelInstance = ai.getGenerativeModel({
-          model: "gemini-1.5-flash", // ✅ stable, public model
-          systemInstruction: `You are PRIME Bot — a fitness and diet assistant.
-You help users create personalized workout and meal plans in a friendly, concise, and motivational way.`,
+          model: "gemini-2.0-pro",
+          systemInstruction: `You are a friendly and professional AI fitness assistant for 'Prime Fitness Point'.
+Help users create customized diet and workout plans based on their goals, gender, and age.
+Always be polite, concise, and motivating.`,
         });
 
         setModel(modelInstance);
@@ -59,7 +60,7 @@ You help users create personalized workout and meal plans in a friendly, concise
           {
             role: "model",
             content:
-              "🏋️‍♂️ Welcome to Prime Fitness Point! I’m PRIME Bot, your AI fitness trainer. What’s your name?",
+              "🏋️‍♂️ Welcome to Prime Fitness Point! I’m PRIME Bot, your personal AI fitness assistant. What’s your name?",
           },
         ]);
       } catch (err) {
@@ -68,61 +69,46 @@ You help users create personalized workout and meal plans in a friendly, concise
           {
             role: "model",
             content:
-              "⚠️ I'm having trouble connecting to the Gemini API. Please verify your API key and refresh the page.",
+              "Sorry, I'm having trouble connecting. Please check your internet connection or API key and refresh the page.",
           },
         ]);
       } finally {
         setIsLoading(false);
       }
     };
-
     initChat();
   }, []);
 
-  // Handle message submission
   // Handle user message submission
-const handleSendMessage = async (e: FormEvent) => {
-  e.preventDefault();
-  if (!input.trim() || !model) return;
+  const handleSendMessage = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !model) return;
 
-  const userMessage: Message = { role: "user", content: input };
-  setMessages((prev) => [...prev, userMessage]);
-  const currentInput = input;
-  setInput("");
-  setIsLoading(true);
+    const userMessage: Message = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
+    setInput("");
+    setIsLoading(true);
 
-  try {
-    console.log("Sending prompt:", currentInput);
-
-    // Generate content using Gemini API
-    const result = await model.generateContent(currentInput);
-
-    // Handle API output safely (some SDKs return nested response)
-    let text = "";
-    if (result?.response) {
-      text = result.response.text();
-    } else if (result?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      text = result.candidates[0].content.parts[0].text;
-    } else {
-      text = "⚠️ Unexpected response format from Gemini API.";
+    try {
+      const result = await model.generateContent(currentInput);
+      const response = await result.response;
+      const text = response.text();
+      setMessages((prev) => [...prev, { role: "model", content: text }]);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "model",
+          content:
+            "⚠️ I encountered an issue generating a response. Please try again.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
-
-    setMessages((prev) => [...prev, { role: "model", content: text }]);
-  } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "model",
-        content:
-          "⚠️ I encountered an issue generating a response. Please try again.",
-      },
-    ]);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   // Download plan
   const handleDownloadPlan = (content: string) => {
@@ -225,6 +211,9 @@ const handleSendMessage = async (e: FormEvent) => {
           </button>
         </form>
       </footer>
+
+      {/* Hidden element for printing */}
+      <div id="print-mount" className="hidden"></div>
     </div>
   );
 };
