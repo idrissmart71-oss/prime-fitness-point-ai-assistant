@@ -81,6 +81,7 @@ Always be polite, concise, and motivating.`,
 
   // Handle user message submission
   // Handle user message submission
+// Handle user message submission
 const handleSendMessage = async (e: FormEvent) => {
   e.preventDefault();
   if (!input.trim() || !model) return;
@@ -92,28 +93,34 @@ const handleSendMessage = async (e: FormEvent) => {
   setIsLoading(true);
 
   try {
-    // Gemini API expects text prompt in array form for context
+    // Proper Gemini API structure for chat-style conversation
     const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: currentInput }] }],
+      contents: [
+        ...messages.map((m) => ({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.content }],
+        })),
+        { role: "user", parts: [{ text: currentInput }] },
+      ],
     });
 
-    const text = result.response.text();
-
-    setMessages((prev) => [...prev, { role: "model", content: text }]);
+    const responseText = result.response.text();
+    setMessages((prev) => [...prev, { role: "model", content: responseText }]);
   } catch (error) {
-    console.error("Error sending message:", error);
+    console.error("Gemini API Error:", error);
     setMessages((prev) => [
       ...prev,
       {
         role: "model",
         content:
-          "⚠️ I encountered an issue generating a response. Please try again.",
+          "⚠️ I encountered an issue generating a response. Please try again later.",
       },
     ]);
   } finally {
     setIsLoading(false);
   }
 };
+
 
 
   // Download plan
