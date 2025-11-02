@@ -53,9 +53,9 @@ app.post("/api/chat", async (req, res) => {
 
     🧭 Gym Info:
     - 📍 Address: 71, Tarani Colony, A B Road, Behind Forest Office, Dewas, Madhya Pradesh 455001
-    - ☎️ Phone: 081097 50604
+    - ☎️ Phone: +91 94250 50406
     - 💰 Fees: ₹800/month
-    - 🧾 Enrollment: One-time yearly fee ₹1000
+    - 🧾 Enrollment: One-time yearly fee ₹400
     - 🕒 Timings: 5:00 AM – 10:00 PM (all days)
     - 🧍‍♂️ Services: Strength training, cardio, diet consultation, and fitness tracking.
 
