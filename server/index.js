@@ -52,6 +52,20 @@ app.post("/api/chat", async (req, res) => {
 
     console.log("🧠 Prompt received:", userPrompt);
 
+    // Detect if user wants a downloadable file
+    const wantsFile =
+      userPrompt.toLowerCase().includes("excel") ||
+      userPrompt.toLowerCase().includes("word") ||
+      userPrompt.toLowerCase().includes("pdf");
+
+    const fileFormat = userPrompt.toLowerCase().includes("excel")
+      ? "xlsx"
+      : userPrompt.toLowerCase().includes("word")
+      ? "docx"
+      : userPrompt.toLowerCase().includes("pdf")
+      ? "pdf"
+      : null;
+
     // 🏋️ PRIME FITNESS HEALTH — Full Gym, Nutrition, and Info Assistant
     const systemPrompt = `
     You are "PRIME FIT COACH" — the official AI assistant of Prime Fitness Health (https://prime-fitness-health.grexa.site/).
@@ -65,8 +79,6 @@ app.post("/api/chat", async (req, res) => {
     - 🕒 Timings: 5:00 AM – 10:00 PM (all days)
     - 🧍‍♂️ Services: Strength training, cardio, diet consultation, and fitness tracking.
 
-    If the user asks for gym details (address, contact, fees, timings, or services), respond directly and clearly using this info.
-
     🎯 Communication Style:
     - Fast, precise, professional tone.
     - Use short structured or bullet-style responses.
@@ -74,79 +86,12 @@ app.post("/api/chat", async (req, res) => {
     - End every response with: “Stay consistent and train smart 💪.”
 
     💪 Functional Capabilities:
-    1️⃣ **BMI & Calorie Calculation**
-        - Request Age, Gender, Height (cm), Weight (kg), and Activity Level if missing.
-        - BMI = weight / (height/100)^2
-        - Classify BMI:
-          - Underweight < 18.5
-          - Normal 18.5–24.9
-          - Overweight 25–29.9
-          - Obese ≥ 30
-        - BMR (Mifflin–St Jeor):
-          - Men: 10W + 6.25H - 5A + 5
-          - Women: 10W + 6.25H - 5A - 161
-        - Multiply BMR × activity level (1.2–1.9) → Daily Maintenance Calories.
-        - Output example:
-          BMI: 23.1 (Normal)
-          BMR: 1580 kcal/day
-          Maintenance Calories: 2450 kcal/day
-
-    2️⃣ **Diet & Meal Plan — Personalized to BMI & Calories**
-        - Always base the plan on user’s BMI category and calorie needs:
-          - Underweight → +300 to +500 kcal surplus/day (focus on high protein & calorie-dense foods)
-          - Normal → Maintain calories ±0, balanced macros
-          - Overweight → -400 to -600 kcal deficit/day (focus on high protein, low-carb, low-fat)
-          - Obese → -600 to -800 kcal deficit/day (high fiber, low sugar, low oil)
-        - Generate a 7-day *Indian-style* plan (3 meals + 2 snacks per day).
-        - Keep total calories per day near the personalized target.
-        - For each day include:
-          - Meal timings (Breakfast, Lunch, Dinner, Snacks)
-          - Approx calories and macros (Protein g, Carbs g, Fat g)
-          - Mention veg/non-veg options if user’s preference is known.
-        - Example structure:
-          **Day 1 (≈2300 kcal)**
-          - 🥣 Breakfast (8:00 AM): Oats with milk & banana – 350 kcal
-          - 🍛 Lunch (1:00 PM): Brown rice + dal + grilled chicken – 700 kcal
-          - 🥗 Snack (5:00 PM): Sprouts chaat – 150 kcal
-          - 🍜 Dinner (8:00 PM): Chapati + paneer bhurji + salad – 500 kcal
-          - 🧃 Bedtime: Milk – 200 kcal
-          **Macros:** P:110g | C:270g | F:70g
-        - Adjust every day’s meals to keep near calorie goal and BMI target.
-
-    3️⃣ **Workout Guidance**
-        - Suggest routines based on goal (weight loss, gain, strength, etc.).
-        - Include sets × reps × rest and weekly structure.
-
-    4️⃣ **Food Nutrient Info**
-        - When asked about a food, show:
-          - Serving size, Calories, Protein, Carbs, Fat, Vitamins/Minerals
-          - 1-line benefit + 1-line caution.
-          Example:
-          Food: Almonds (10 pieces)
-          - Calories: 70 kcal
-          - Protein: 3 g | Carbs: 2 g | Fat: 6 g
-          - Benefits: Boosts heart health & provides good fats.
-          - Caution: High calories — limit if cutting.
-
-    5️⃣ **Missing Data Handling**
-        - Politely ask for missing info needed to calculate BMI or calories.
-
-    6️⃣ **Gym Info Queries**
-        - If user asks about joining, fees, timings, trainers, or address — answer directly using gym info above.
-
-    7️⃣ **JSON Mode (Optional)**
-        - When requested, output a JSON with:
-          {
-            "BMI": 23.1,
-            "BMI_Class": "Normal",
-            "Calories": 2450,
-            "BMR": 1580,
-            "Diet_Type": "Balanced maintenance",
-            "Meals": [ ... summarized plan ... ]
-          }
-
-    8️⃣ **End Every Response**
-        - Always finish with: “Stay consistent and train smart 💪.”
+    1️⃣ BMI & Calorie Calculation
+    2️⃣ Personalized 7-day Indian diet based on BMI & Calories
+    3️⃣ Food Nutrient Info
+    4️⃣ Workout Guidance
+    5️⃣ Gym Info Queries
+    6️⃣ JSON Mode when requested
     `;
 
     // 💬 Combine system prompt + user input
@@ -158,58 +103,64 @@ app.post("/api/chat", async (req, res) => {
       return res.status(500).json({ error: "Empty response from Gemini model" });
     }
 
-    console.log("✅ Gemini responded successfully");
-    res.json({ text });
-  } catch (err) {
-    console.error("❌ Gemini request failed:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
+    // ✅ If no file requested → return text as usual
+    if (!wantsFile) {
+      console.log("✅ Gemini responded successfully");
+      return res.json({ text });
+    }
 
-app.post("/api/dietplan-file", async (req, res) => {
-  try {
-    const { prompt, format } = req.body; // format = 'xlsx' | 'docx' | 'pdf'
-    if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+    // 🧾 If file requested → create downloadable file
+    console.log(`📁 Generating diet plan file (${fileFormat})...`);
 
-    const systemPrompt = `
-    You are PRIME FIT COACH — a professional diet planner.
-    Generate a personalized 7-day Indian diet chart in strict JSON format:
+    // Ask Gemini for a structured plan in JSON format
+    const filePrompt = `
+    Create a 7-day Indian diet chart in valid JSON format:
     {
       "Day 1": [
-        {"Meal": "Breakfast", "Items": "Oats with milk & banana", "Calories": 350},
-        {"Meal": "Lunch", "Items": "Brown rice + dal + chicken", "Calories": 700},
-        {"Meal": "Snack", "Items": "Sprouts chaat", "Calories": 150},
-        {"Meal": "Dinner", "Items": "Chapati + paneer bhurji", "Calories": 500}
+        {"Meal": "Breakfast", "Items": "Oats + milk + banana", "Calories": 350},
+        {"Meal": "Lunch", "Items": "Brown rice + dal + paneer", "Calories": 650}
       ],
       "Day 2": [...]
     }
-    Base the plan on the user's BMI and calorie requirement.
-    Respond with only valid JSON.`;
+    Use data based on the user’s BMI and calorie needs. Do NOT add comments or markdown.
+    `;
+    const planRes = await model.generateContent([filePrompt, userPrompt]);
+    const planText = planRes.response.text();
 
-    const result = await model.generateContent([systemPrompt, prompt]);
-    const text = result.response.text();
+    let plan;
+    try {
+      plan = JSON.parse(planText);
+    } catch {
+      console.error("⚠️ Could not parse diet plan JSON.");
+      return res.json({
+        text: `${text}\n\n⚠️ Unable to generate downloadable plan. Try again.`,
+      });
+    }
 
-    const plan = JSON.parse(text);
-    const fileId = uuidv4();
-    const filePath = `/tmp/diet_${fileId}.${format}`;
+    // Generate file
+    const fileId = Date.now();
+    const filePath = `/tmp/diet_${fileId}.${fileFormat}`;
 
-    if (format === "xlsx") {
+    if (fileFormat === "xlsx") {
+      const XLSX = await import("xlsx");
       const allDays = [];
       Object.entries(plan).forEach(([day, meals]) => {
-        meals.forEach((m) => {
+        meals.forEach((m) =>
           allDays.push({
             Day: day,
             Meal: m.Meal,
             Items: m.Items,
             Calories: m.Calories,
-          });
-        });
+          })
+        );
       });
       const ws = XLSX.utils.json_to_sheet(allDays);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Diet Plan");
       XLSX.writeFile(wb, filePath);
-    } else if (format === "docx") {
+    } else if (fileFormat === "docx") {
+      const { Document, Packer, Paragraph, TextRun } = await import("docx");
+      const fs = await import("fs");
       const doc = new Document();
       Object.entries(plan).forEach(([day, meals]) => {
         doc.addSection({
@@ -227,8 +178,9 @@ app.post("/api/dietplan-file", async (req, res) => {
         });
       });
       const buffer = await Packer.toBuffer(doc);
-      writeFileSync(filePath, buffer);
-    } else if (format === "pdf") {
+      fs.writeFileSync(filePath, buffer);
+    } else if (fileFormat === "pdf") {
+      const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF();
       let y = 10;
       Object.entries(plan).forEach(([day, meals]) => {
@@ -243,12 +195,14 @@ app.post("/api/dietplan-file", async (req, res) => {
       pdf.save(filePath);
     }
 
+    console.log("✅ File generated successfully");
     res.download(filePath);
   } catch (err) {
-    console.error("❌ Diet plan file generation failed:", err.message);
+    console.error("❌ Gemini request failed:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 
