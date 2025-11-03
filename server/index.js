@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { writeFileSync } from "fs";
+import fs from "fs";
 import XLSX from "xlsx";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import { jsPDF } from "jspdf";
