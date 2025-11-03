@@ -92,6 +92,10 @@ app.post("/api/chat", async (req, res) => {
     4️⃣ Workout Guidance
     5️⃣ Gym Info Queries
     6️⃣ JSON Mode when requested
+    8️⃣ When you create a 7-day diet plan, always start with the heading:
+   "### Your Personalized 7-Day Diet Plan"
+   so the app can enable the download button.
+
     `;
 
     // 💬 Combine system prompt + user input
@@ -114,15 +118,20 @@ app.post("/api/chat", async (req, res) => {
 
     // Ask Gemini for a structured plan in JSON format
     const filePrompt = `
-    Create a 7-day Indian diet chart in valid JSON format:
+    You are PRIME FIT COACH — a professional diet planner.
+    Create a detailed 7-day Indian diet chart in JSON format:
     {
       "Day 1": [
-        {"Meal": "Breakfast", "Items": "Oats + milk + banana", "Calories": 350},
-        {"Meal": "Lunch", "Items": "Brown rice + dal + paneer", "Calories": 650}
+        {"Meal": "Breakfast", "Items": "Oats with milk & banana 🥣", "Calories": 350},
+        {"Meal": "Lunch", "Items": "Brown rice + dal + chicken 🍛", "Calories": 700},
+        {"Meal": "Snack", "Items": "Sprouts chaat 🥗", "Calories": 150},
+        {"Meal": "Dinner", "Items": "Chapati + paneer bhurji 🍜", "Calories": 500}
       ],
       "Day 2": [...]
     }
-    Use data based on the user’s BMI and calorie needs. Do NOT add comments or markdown.
+    Base the plan on the user's BMI and calorie needs. Respond with only valid JSON — no markdown.
+    When providing a 7-day meal or fitness plan, include the heading "### Your 7-Day Diet Plan" at the top.
+
     `;
     const planRes = await model.generateContent([filePrompt, userPrompt]);
     const planText = planRes.response.text();
@@ -199,6 +208,95 @@ app.post("/api/chat", async (req, res) => {
     res.download(filePath);
   } catch (err) {
     console.error("❌ Gemini request failed:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+import { writeFileSync } from "fs";
+import XLSX from "xlsx";
+import { Document, Packer, Paragraph, TextRun } from "docx";
+import { jsPDF } from "jspdf";
+import { v4 as uuidv4 } from "uuid";
+
+app.post("/api/dietplan-file", async (req, res) => {
+  try {
+    const { prompt, format } = req.body; // format = 'xlsx' | 'docx' | 'pdf'
+    if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+
+    const systemPrompt = `
+    You are PRIME FIT COACH — a professional diet planner.
+    Create a detailed 7-day Indian diet chart in JSON format:
+    {
+      "Day 1": [
+        {"Meal": "Breakfast", "Items": "Oats with milk & banana 🥣", "Calories": 350},
+        {"Meal": "Lunch", "Items": "Brown rice + dal + chicken 🍛", "Calories": 700},
+        {"Meal": "Snack", "Items": "Sprouts chaat 🥗", "Calories": 150},
+        {"Meal": "Dinner", "Items": "Chapati + paneer bhurji 🍜", "Calories": 500}
+      ],
+      "Day 2": [...]
+    }
+    Base the plan on the user's BMI and calorie needs. Respond with only valid JSON — no markdown.
+    `;
+
+    const result = await model.generateContent([systemPrompt, prompt]);
+    const text = result.response.text();
+    const plan = JSON.parse(text);
+
+    const fileId = uuidv4();
+    const filePath = `/tmp/diet_${fileId}.${format}`;
+
+    if (format === "xlsx") {
+      const allDays = [];
+      Object.entries(plan).forEach(([day, meals]) => {
+        meals.forEach((m) => {
+          allDays.push({
+            Day: day,
+            Meal: m.Meal,
+            Items: m.Items,
+            Calories: m.Calories,
+          });
+        });
+      });
+      const ws = XLSX.utils.json_to_sheet(allDays);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Diet Plan");
+      XLSX.writeFile(wb, filePath);
+    } else if (format === "docx") {
+      const doc = new Document();
+      Object.entries(plan).forEach(([day, meals]) => {
+        doc.addSection({
+          children: [
+            new Paragraph({ text: day, bold: true }),
+            ...meals.map(
+              (m) =>
+                new Paragraph({
+                  children: [
+                    new TextRun(`${m.Meal}: ${m.Items} (${m.Calories} kcal)`),
+                  ],
+                })
+            ),
+          ],
+        });
+      });
+      const buffer = await Packer.toBuffer(doc);
+      writeFileSync(filePath, buffer);
+    } else if (format === "pdf") {
+      const pdf = new jsPDF();
+      let y = 10;
+      Object.entries(plan).forEach(([day, meals]) => {
+        pdf.text(day, 10, y);
+        y += 8;
+        meals.forEach((m) => {
+          pdf.text(`• ${m.Meal}: ${m.Items} (${m.Calories} kcal)`, 10, y);
+          y += 7;
+        });
+        y += 5;
+      });
+      pdf.save(filePath);
+    }
+
+    res.download(filePath);
+  } catch (err) {
+    console.error("❌ Diet plan file generation failed:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

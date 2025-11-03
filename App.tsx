@@ -200,7 +200,8 @@ const App: React.FC = () => {
                 )}
 
                 {msg.role === "model" &&
-                  msg.content.includes("Your Personalized 7-Day Diet Plan") && (
+                  msg.content.match(/7[- ]?day/i) &&
+                  msg.content.match(/diet/i) && (
                     <button
                       onClick={() => handleDownloadPlan(msg.content)}
                       className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 text-xs text-primary-700 dark:text-primary-300 bg-primary-100 dark:bg-primary-900/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -210,6 +211,7 @@ const App: React.FC = () => {
                       Download Plan
                     </button>
                   )}
+
               </div>
               {msg.role === "user" && (
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-500 flex items-center justify-center text-white">
