@@ -123,14 +123,37 @@ const App: React.FC = () => {
   
   
 
-  const handleDownloadPlan = (content: string) => {
-    const printMount = document.getElementById("print-mount");
-    if (printMount) {
-      printMount.innerHTML = markdownToHtml(content);
-      window.print();
-      printMount.innerHTML = "";
+  const handleDownloadPlan = async (content: string) => {
+    const format = prompt("Enter format: xlsx, pdf, or docx")?.toLowerCase();
+    if (!["xlsx", "pdf", "docx"].includes(format || "")) {
+      alert("Invalid format selected.");
+      return;
+    }
+  
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/dietplan-file`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: content,
+          format: format,
+        }),
+      });
+  
+      if (!res.ok) throw new Error("Failed to generate file");
+  
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `diet_plan.${format}`;
+      a.click();
+    } catch (err) {
+      console.error("Download error:", err);
+      alert("Failed to generate the diet plan file. Please try again.");
     }
   };
+  
 
   return (
     <div className="flex flex-col h-screen font-sans bg-slate-100 dark:bg-slate-900">
