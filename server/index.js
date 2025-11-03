@@ -8,6 +8,7 @@ import { Document, Packer, Paragraph, TextRun } from "docx";
 import { jsPDF } from "jspdf";
 import { v4 as uuidv4 } from "uuid";
 
+
 dotenv.config();
 
 const app = express();
@@ -15,11 +16,11 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 8080;
 
-// 👇 Allowed origins
+// 👇 Your exact deployed Vercel URL goes here:
 const allowedOrigins = [
   "http://localhost:5173",
   "https://prime-fitness-point-ai-assistant.vercel.app",
-  "https://prime-fitness-point-ai-assistant-m3dvj8qdo.vercel.app", // ✅ make sure it's EXACT
+  "https://prime-fitness-point-ai-assistant-m3dvj8qdo.vercel.app" // ✅ make sure it's EXACT
 ];
 
 app.use(
@@ -40,15 +41,10 @@ const API_KEY = process.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash" });
 
-// ✅ Test endpoint
 app.get("/", (req, res) => {
   res.send("✅ PRIME FIT COACH backend is running");
 });
 
-
-// ===============================================
-// 💬 MAIN CHAT ENDPOINT
-// ===============================================
 app.post("/api/chat", async (req, res) => {
   try {
     const userPrompt = req.body.prompt;
@@ -97,8 +93,9 @@ app.post("/api/chat", async (req, res) => {
     5️⃣ Gym Info Queries
     6️⃣ JSON Mode when requested
     8️⃣ When you create a 7-day diet plan, always start with the heading:
-       "### Your Personalized 7-Day Diet Plan"
-       so the app can enable the download button.
+   "### Your Personalized 7-Day Diet Plan"
+   so the app can enable the download button.
+
     `;
 
     // 💬 Combine system prompt + user input
@@ -119,6 +116,7 @@ app.post("/api/chat", async (req, res) => {
     // 🧾 If file requested → create downloadable file
     console.log(`📁 Generating diet plan file (${fileFormat})...`);
 
+    // Ask Gemini for a structured plan in JSON format
     const filePrompt = `
     You are PRIME FIT COACH — a professional diet planner.
     Create a detailed 7-day Indian diet chart in JSON format:
@@ -133,8 +131,8 @@ app.post("/api/chat", async (req, res) => {
     }
     Base the plan on the user's BMI and calorie needs. Respond with only valid JSON — no markdown.
     When providing a 7-day meal or fitness plan, include the heading "### Your 7-Day Diet Plan" at the top.
-    `;
 
+    `;
     const planRes = await model.generateContent([filePrompt, userPrompt]);
     const planText = planRes.response.text();
 
@@ -148,10 +146,12 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
+    // Generate file
     const fileId = Date.now();
     const filePath = `/tmp/diet_${fileId}.${fileFormat}`;
 
     if (fileFormat === "xlsx") {
+      const XLSX = await import("xlsx");
       const allDays = [];
       Object.entries(plan).forEach(([day, meals]) => {
         meals.forEach((m) =>
@@ -168,6 +168,8 @@ app.post("/api/chat", async (req, res) => {
       XLSX.utils.book_append_sheet(wb, ws, "Diet Plan");
       XLSX.writeFile(wb, filePath);
     } else if (fileFormat === "docx") {
+      const { Document, Packer, Paragraph, TextRun } = await import("docx");
+      const fs = await import("fs");
       const doc = new Document();
       Object.entries(plan).forEach(([day, meals]) => {
         doc.addSection({
@@ -187,6 +189,7 @@ app.post("/api/chat", async (req, res) => {
       const buffer = await Packer.toBuffer(doc);
       fs.writeFileSync(filePath, buffer);
     } else if (fileFormat === "pdf") {
+      const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF();
       let y = 10;
       Object.entries(plan).forEach(([day, meals]) => {
@@ -208,11 +211,12 @@ app.post("/api/chat", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+import { writeFileSync } from "fs";
+import XLSX from "xlsx";
+import { Document, Packer, Paragraph, TextRun } from "docx";
+import { jsPDF } from "jspdf";
+import { v4 as uuidv4 } from "uuid";
 
-
-// ===============================================
-// 📁 DIET PLAN FILE ENDPOINT
-// ===============================================
 app.post("/api/dietplan-file", async (req, res) => {
   try {
     const { prompt, format } = req.body; // format = 'xlsx' | 'docx' | 'pdf'
@@ -274,7 +278,7 @@ app.post("/api/dietplan-file", async (req, res) => {
         });
       });
       const buffer = await Packer.toBuffer(doc);
-      fs.writeFileSync(filePath, buffer);
+      writeFileSync(filePath, buffer);
     } else if (format === "pdf") {
       const pdf = new jsPDF();
       let y = 10;
@@ -297,9 +301,12 @@ app.post("/api/dietplan-file", async (req, res) => {
   }
 });
 
-// ===============================================
-// 🚀 SERVER START
-// ===============================================
+
+
+
+
+  
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
