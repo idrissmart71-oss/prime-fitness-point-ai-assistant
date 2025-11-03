@@ -83,6 +83,10 @@ app.post("/api/chat", async (req, res) => {
           BMI: 23.4 (Normal)
           BMR: 1650 kcal/day
           Maintenance Calories: 2400 kcal/day
+          ➡️ After calculating BMI and calories, do NOT stop.
+          Automatically continue by creating a personalized 7-day Indian diet plan based on those calorie needs
+          unless the user specifically says “stop” or “only BMI”.
+      
 
     2️⃣ **Personalized 7-Day Diet Plan**
         - Create a 7-day Indian meal plan (3 meals + 2 snacks/day)
