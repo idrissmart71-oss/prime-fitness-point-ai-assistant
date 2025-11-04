@@ -44,6 +44,11 @@ app.get("/", (req, res) => {
 // ===============================================
 // 💬 MAIN CHAT ENDPOINT
 // ===============================================
+// ===============================================
+// 💬 MAIN CHAT ENDPOINT with Conversation Memory
+// ===============================================
+const chatHistory = []; // 🧠 Stores recent messages for short-term memory
+
 app.post("/api/chat", async (req, res) => {
   try {
     const userPrompt = req.body.prompt;
@@ -51,21 +56,35 @@ app.post("/api/chat", async (req, res) => {
 
     console.log("🧠 Prompt received:", userPrompt);
 
+    // 🧠 Keep last 8 messages for smooth context recall
+    if (chatHistory.length > 8) chatHistory.splice(0, chatHistory.length - 8);
+
+    // Add user message to memory
+    chatHistory.push({ role: "user", content: userPrompt });
+
+    // Combine previous context for Gemini
+    const conversationContext = chatHistory
+      .map((msg) => `${msg.role === "user" ? "👤 User:" : "🤖 Prime Fit Coach:"} ${msg.content}`)
+      .join("\n");
+
     // 🏋️ PRIME FITNESS HEALTH — Full Gym, Nutrition, and Info Assistant
     const systemPrompt = `
 You are "PRIME FIT COACH" — the official AI assistant of Prime Fitness Health (https://prime-fitness-health.grexa.site/).
-You are a certified gym trainer, nutrition advisor, and smart conversational assistant.
+You are a certified gym trainer, nutrition advisor, and smart conversational assistant with memory of recent messages.
 
 🏋️‍♂️ Your Core Identity:
 - You represent Prime Fitness Health Gym.
 - You act as a professional fitness trainer, nutritionist, and friendly wellness guide.
 - You maintain a positive, energetic, professional tone.
 
+🧠 Conversation Context:
+${conversationContext}
+
 🧭 Gym Info:
 - 📍 Address: 71, Tarani Colony, A B Road, Behind Forest Office, Dewas, Madhya Pradesh 455001
 - ☎️ Phone: 081097 50604
 - 💰 Fees: ₹800/month
-- 🧾 Enrollment: One-time yearly fee ₹400
+- 🧾 Enrollment: One-time yearly fee ₹1000
 - 🕒 Timings: 5:00 AM – 10:00 PM (all days)
 - 🧍‍♂️ Services: Strength training, cardio, diet consultation, and fitness tracking.
 
@@ -134,7 +153,8 @@ You are a certified gym trainer, nutrition advisor, and smart conversational ass
     - If it’s unrelated to fitness, respond briefly but informatively, maintaining your polite tone.
 
 7️⃣ **Intelligent Flow**
-    - If user gives BMI details, continue to generate diet plan automatically.
+    - Remember context of previous messages.
+    - If user already gave BMI/weight earlier, reuse it.
     - If user greets, reply warmly and ask if they want BMI, diet, or workout advice.
     - If user asks something totally different (e.g. “Who is the president of India?”), answer correctly but add:
       “By the way, want me to help plan your next workout or diet? 💪”
@@ -149,7 +169,6 @@ Always end every fitness-related message with:
 👉 *“Stay consistent and train smart 💪.”*
 `;
 
-
     // 💬 Combine system prompt + user input
     const result = await model.generateContent([systemPrompt, userPrompt]);
     const text = result.response.text();
@@ -159,6 +178,9 @@ Always end every fitness-related message with:
       return res.status(500).json({ error: "Empty response from Gemini model" });
     }
 
+    // 🧠 Add assistant reply to chat memory
+    chatHistory.push({ role: "assistant", content: text });
+
     console.log("✅ Gemini responded successfully");
     res.json({ text });
   } catch (err) {
@@ -166,6 +188,7 @@ Always end every fitness-related message with:
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // ===============================================
