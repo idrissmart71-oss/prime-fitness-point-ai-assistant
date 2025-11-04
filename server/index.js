@@ -188,6 +188,71 @@ Always end every fitness-related message with:
     res.status(500).json({ error: err.message });
   }
 });
+// ===============================================
+// 📁 EXPORT CONVERSATION / DIET PLAN FILE ENDPOINT
+// ===============================================
+app.post("/api/export", async (req, res) => {
+  try {
+    const { text, format } = req.body; // text = conversation or diet plan, format = 'pdf' | 'xlsx' | 'docx'
+
+    if (!text || !format) {
+      return res.status(400).json({ error: "Missing text or format" });
+    }
+
+    const fileId = uuidv4();
+    const filePath = `/tmp/export_${fileId}.${format}`;
+
+    // 🧾 Create the requested file format
+    if (format === "pdf") {
+      const pdf = new jsPDF();
+      const lines = pdf.splitTextToSize(text, 180);
+      let y = 10;
+      lines.forEach((line) => {
+        pdf.text(line, 10, y);
+        y += 8;
+        if (y > 270) {
+          pdf.addPage();
+          y = 10;
+        }
+      });
+      pdf.save(filePath);
+    } else if (format === "docx") {
+      const doc = new Document({
+        sections: [
+          {
+            children: text.split("\n").map(
+              (line) =>
+                new Paragraph({
+                  children: [new TextRun(line)],
+                  spacing: { after: 150 },
+                })
+            ),
+          },
+        ],
+      });
+      const buffer = await Packer.toBuffer(doc);
+      fs.writeFileSync(filePath, buffer);
+    } else if (format === "xlsx") {
+      // Convert text into structured Excel data
+      const rows = text
+        .split("\n")
+        .filter((line) => line.trim() !== "")
+        .map((line) => ({ Content: line }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Diet Plan");
+      XLSX.writeFile(wb, filePath);
+    } else {
+      return res.status(400).json({ error: "Unsupported format" });
+    }
+
+    console.log(`✅ File generated successfully: ${filePath}`);
+    res.download(filePath);
+  } catch (err) {
+    console.error("❌ Export file failed:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 
 
