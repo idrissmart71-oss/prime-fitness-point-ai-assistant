@@ -191,68 +191,80 @@ Always end every fitness-related message with:
 // ===============================================
 // 📁 EXPORT CONVERSATION / DIET PLAN FILE ENDPOINT
 // ===============================================
+// ===============================================
+// 📁 EXPORT CONVERSATION / DIET PLAN FILE ENDPOINT (Stable Version)
+// ===============================================
+import fs from "fs";
+import XLSX from "xlsx";
+import { Document, Packer, Paragraph, TextRun } from "docx";
+import { jsPDF } from "jspdf";
+import { v4 as uuidv4 } from "uuid";
+
 app.post("/api/export", async (req, res) => {
   try {
-    const { text, format } = req.body; // text = conversation or diet plan, format = 'pdf' | 'xlsx' | 'docx'
+    const { text, format } = req.body;
 
     if (!text || !format) {
       return res.status(400).json({ error: "Missing text or format" });
     }
 
-    const fileId = uuidv4();
-    const filePath = `/tmp/export_${fileId}.${format}`;
+    console.log(`📦 Export requested in ${format} format`);
 
-    // 🧾 Create the requested file format
+    const fileId = uuidv4();
+    const filePath = `/tmp/primefit_${fileId}.${format}`;
+
+    // Generate file based on requested format
     if (format === "pdf") {
-      const pdf = new jsPDF();
-      const lines = pdf.splitTextToSize(text, 180);
-      let y = 10;
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      const lines = pdf.splitTextToSize(text, 500);
+      let y = 40;
+      pdf.setFontSize(12);
       lines.forEach((line) => {
-        pdf.text(line, 10, y);
-        y += 8;
-        if (y > 270) {
+        if (y > 780) {
           pdf.addPage();
-          y = 10;
+          y = 40;
         }
+        pdf.text(line, 40, y);
+        y += 18;
       });
       pdf.save(filePath);
-    } else if (format === "docx") {
-      const doc = new Document({
-        sections: [
-          {
-            children: text.split("\n").map(
-              (line) =>
-                new Paragraph({
-                  children: [new TextRun(line)],
-                  spacing: { after: 150 },
-                })
-            ),
-          },
-        ],
-      });
+    }
+
+    else if (format === "docx") {
+      const paragraphs = text.split("\n").map((line) =>
+        new Paragraph({
+          children: [new TextRun(line)],
+          spacing: { after: 150 },
+        })
+      );
+
+      const doc = new Document({ sections: [{ children: paragraphs }] });
       const buffer = await Packer.toBuffer(doc);
       fs.writeFileSync(filePath, buffer);
-    } else if (format === "xlsx") {
-      // Convert text into structured Excel data
-      const rows = text
-        .split("\n")
-        .filter((line) => line.trim() !== "")
-        .map((line) => ({ Content: line }));
-      const ws = XLSX.utils.json_to_sheet(rows);
+    }
+
+    else if (format === "xlsx") {
+      // Split the text into lines, each line becomes a cell
+      const lines = text.split("\n").filter((line) => line.trim() !== "");
+      const data = lines.map((line, index) => ({ Line: index + 1, Text: line }));
+      const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Diet Plan");
       XLSX.writeFile(wb, filePath);
-    } else {
-      return res.status(400).json({ error: "Unsupported format" });
     }
 
-    console.log(`✅ File generated successfully: ${filePath}`);
+    else {
+      return res.status(400).json({ error: "Unsupported file format" });
+    }
+
+    console.log("✅ File created successfully:", filePath);
     res.download(filePath);
   } catch (err) {
-    console.error("❌ Export file failed:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("❌ Export error:", err.message);
+    res.status(500).json({ error: "Failed to generate diet plan file" });
   }
 });
+
 
 
 
